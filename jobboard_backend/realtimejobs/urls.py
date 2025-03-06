@@ -7,6 +7,8 @@ router = DefaultRouter()
 
 router.register(r'signup', views.RegisterViewSet, basename='signup')
 router.register(r'profile', views.UserViewSet, basename='profile')
+router.register(r'categories', views.CategoryViewSet, basename='category')
+router.register(r'jobtypes', views.JobTypeViewSet, basename='jobtype')
 router.register(r'jobposts', views.JobpostViewSet, basename='jobpost')
 
 

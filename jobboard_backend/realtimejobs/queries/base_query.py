@@ -1,6 +1,6 @@
 import os
-import pymysql
-import aiomysql
+import pymysql #type: ignore
+import aiomysql #type: ignore
 import functools
 import hashlib
 import json

@@ -1,4 +1,4 @@
-from base_query import BaseQuery
+from realtimejobs.queries.base_query import BaseQuery 
 
 class CategoryQueries(BaseQuery):
     """
@@ -59,67 +59,3 @@ class CategoryQueries(BaseQuery):
         print(f"[INFO] Deleting category with ID: {category_id}")
         self.execute_query(query, (category_id,))
 
-    def fetch_jobs_by_category(self, category_id):
-        """Fetch all job postings under a given category."""
-        query = """
-            SELECT j.id, j.title, j.company_id, j.description, j.job_url, j.posted_at
-            FROM realtimejobs_jobpost j
-            WHERE j.category_id = %s
-            ORDER BY j.posted_at DESC;
-        """
-        print(f"[INFO] Fetching jobs for category ID: {category_id}")
-        return self.fetch_all(query, (category_id,))
-
-    def fetch_categories_with_job_count(self):
-        """Fetch categories along with the number of jobs posted under each."""
-        query = """
-            SELECT c.id, c.name, c.slug, COUNT(j.id) AS job_count
-            FROM realtimejobs_category c
-            LEFT JOIN realtimejobs_jobpost j ON c.id = j.category_id
-            GROUP BY c.id, c.name, c.slug
-            ORDER BY job_count DESC;
-        """
-        print("[INFO] Fetching categories with job counts")
-        return self.fetch_all(query)
-
-    def fetch_popular_categories(self, limit=5):
-        """Fetch the most popular categories based on job postings count."""
-        query = """
-            SELECT c.id, c.name, c.slug, COUNT(j.id) AS job_count
-            FROM realtimejobs_category c
-            LEFT JOIN realtimejobs_jobpost j ON c.id = j.category_id
-            GROUP BY c.id, c.name, c.slug
-            ORDER BY job_count DESC
-            LIMIT %s;
-        """
-        print(f"[INFO] Fetching top {limit} popular categories")
-        return self.fetch_all(query, (limit,))
-
-    def fetch_recently_active_categories(self, days=30):
-        """Fetch categories where job postings were added in the last `days` days."""
-        query = """
-            SELECT DISTINCT c.id, c.name, c.slug
-            FROM realtimejobs_category c
-            JOIN realtimejobs_jobpost j ON c.id = j.category_id
-            WHERE j.posted_at >= NOW() - INTERVAL %s DAY;
-        """
-        print(f"[INFO] Fetching categories with job postings in the last {days} days")
-        return self.fetch_all(query, (days,))
-if __name__ == "__main__":
-    category_queries = CategoryQueries()
-
-    # Fetch all categories
-    all_categories = category_queries.fetch_all_categories()
-    print(all_categories)
-
-    # Find a category by ID
-    category = category_queries.find_category_by_id("some-uuid")
-    print(category)
-
-    # Fetch jobs under a specific category
-    jobs = category_queries.fetch_jobs_by_category("some-uuid")
-    print(jobs)
-
-    # Fetch popular categories
-    popular_categories = category_queries.fetch_popular_categories(5)
-    print(popular_categories)

@@ -7,13 +7,18 @@ from rest_framework import viewsets, status, generics  # type: ignore
 from rest_framework.response import Response  # type: ignore
 from rest_framework.permissions import AllowAny  # type: ignore
 from rest_framework.decorators import action  # type: ignore
+from django.utils.text import slugify  # type: ignore
 
-
-from .models import JobPost
-from .serializers import JobPostSerializer, RegisterUserSerializer, UserSerializer, ChangePasswordSerializer
+# Import raw SQL queries
+from realtimejobs.queries.category_queries import CategoryQueries
+from .models import JobPost, Category, User, JobType
+from .serializers import JobPostSerializer, RegisterUserSerializer, JobTypeSerializer, UserSerializer, ChangePasswordSerializer, CategorySerializer
 from django.contrib.auth import get_user_model  # type: ignore
+from .permissions import IsAdminOrReadOnly
 
 User = get_user_model()
+
+# ****************USER  VIEWS ************************
 
 
 class RegisterViewSet(viewsets.ModelViewSet):
@@ -78,6 +83,99 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response({"message": "Password updated successfully."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ****************CATEGORIES VIEW************************
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    A viewset that provides CRUD operations for job categories.
+    Uses Django ORM for standard operations.
+    """
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def create(self, request, *args, **kwargs):
+        """Create a new category (Admin Only)."""
+        if not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        name = request.data.get("name")
+        if not name:
+            return Response({"error": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slug = slugify(name).lower()
+
+        # Use Django ORM to create the category
+        category = Category.objects.create(name=name, slug=slug)
+
+        return Response(
+            {"message": "Category created successfully",
+                "category": CategorySerializer(category).data},
+            status=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        """Update an existing category (Admin Only)."""
+        if not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        category_id = kwargs.get("pk")
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Keep old name if not provided
+        name = request.data.get("name", category.name)
+        category.name = name
+        category.slug = slugify(name).lower()
+        category.save()  # Save changes using ORM
+
+        return Response(
+            {"message": "Category updated successfully",
+                "category": CategorySerializer(category).data},
+            status=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a category (Admin Only)."""
+        if not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        category_id = kwargs.get("pk")
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        category.delete()  # ORM delete
+        return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+class JobTypeViewSet(viewsets.ModelViewSet):
+    """
+    A viewset that provides CRUD operations for job types.
+    """
+    queryset = JobType.objects.all().order_by("name")  # Optimized query
+    serializer_class = JobTypeSerializer
+    permission_classes = [IsAdminOrReadOnly]  # Restrict to admin users
+
+    def perform_create(self, serializer):
+        """Customize the creation process if needed."""
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """Customize the update process if needed."""
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Customize the deletion process if needed."""
+        instance.delete()
+
 
 
 class JobpostViewSet(viewsets.ModelViewSet):
