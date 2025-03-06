@@ -1,7 +1,7 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.db import models
-from django.utils.text import slugify
-from django.core.validators import MaxLengthValidator
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin  # type: ignore
+from django.db import models  # type: ignore
+from django.utils.text import slugify  # type: ignore
+from django.core.validators import MaxLengthValidator  # type: ignore
 
 import uuid
 
@@ -9,7 +9,7 @@ import uuid
 # Custom User Manager for handling user creation
 class CustomUserManager(BaseUserManager):
     """
-    Custom manager for the User model that provides methods 
+    Custom manager for the User model that provides methods
     to create regular users and superusers.
     """
 
@@ -201,6 +201,9 @@ class JobType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True, db_index=True)
 
+    def __str__(self):
+        return self.name
+
 
 class JobPost(models.Model):
     """
@@ -214,10 +217,11 @@ class JobPost(models.Model):
     )  # Unique & secure identifier
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='job_posts')
-    job_url = models.TextField(
+    job_url = models.CharField(
+        max_length=2083,  # 2083 is the max URL length in modern browsers
         null=False,
         blank=False,
-        db_index=True,  # Index for quick URL lookup
+        db_index=True,  # Now indexing will work
         help_text="Direct URL to the job post."
     )
 
@@ -260,7 +264,7 @@ class JobPost(models.Model):
     )
 
     job_type = models.ForeignKey(
-        JobType, on_delete=models.CASCADE, db_index=True)
+        'JobType', on_delete=models.CASCADE, db_index=True)
 
     salary = models.CharField(
         max_length=100,
