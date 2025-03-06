@@ -12,9 +12,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
 
 
-load_dotenv ()
+
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -43,6 +45,8 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'realtimejobs',
+    'rest_framework_simplejwt',
+
 ]
 
 MIDDLEWARE = [
@@ -82,13 +86,14 @@ AUTH_USER_MODEL = 'realtimejobs.User'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql', 
-        # 'default': dj_database_url.config(default=os.getenv('DATABASE_URL'), engine='django.db.backends.mysql'), 
-        'NAME': os.getenv('DB_NAME'),  
-        'USER':  os.getenv('DB_USER'), 
-        'PASSWORD':  os.getenv('DB_PASSWORD'),  
-        'HOST':  os.getenv('DB_HOST'),  
-        'PORT':  os.getenv('DB_PORT', default='3306'), # Default MySQL port is 3306
+        'ENGINE': 'django.db.backends.mysql',
+        # 'default': dj_database_url.config(default=os.getenv('DATABASE_URL'), engine='django.db.backends.mysql'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER':  os.getenv('DB_USER'),
+        'PASSWORD':  os.getenv('DB_PASSWORD'),
+        'HOST':  os.getenv('DB_HOST'),
+        # Default MySQL port is 3306
+        'PORT':  os.getenv('DB_PORT', default='3306'),
     }
 }
 
@@ -111,6 +116,20 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+REST_FRAMEWORK = { 
+    'DEFAULT_AUTHENTICATION_CLASSES': [ 
+        'rest_framework_simplejwt.authentication.JWTAuthentication', 
+    ], 
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,  # Generates a new refresh token on refresh
+    "BLACKLIST_AFTER_ROTATION": True,  # Invalidates old refresh tokens
+    "ALGORITHM": "HS256",
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
