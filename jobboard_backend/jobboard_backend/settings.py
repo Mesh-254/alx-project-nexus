@@ -120,11 +120,11 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = { 
     'DEFAULT_AUTHENTICATION_CLASSES': [ 
         'rest_framework_simplejwt.authentication.JWTAuthentication', 
-    ], 
+    ],
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,  # Generates a new refresh token on refresh
     "BLACKLIST_AFTER_ROTATION": True,  # Invalidates old refresh tokens

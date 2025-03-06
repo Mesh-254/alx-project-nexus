@@ -1,57 +1,114 @@
-from rest_framework import serializers # type: ignore
-from django.contrib.auth import get_user_model # type: ignore
-from .models import Company, Tag, Category, JobType, JobPost, JobInteraction, JobAlert
+from rest_framework import serializers  # type: ignore
+from django.contrib.auth import get_user_model  # type: ignore
+from django.contrib.auth.password_validation import validate_password  # type: ignore
+from .models import Company, Tag, Category, JobType, JobPost, JobInteraction, JobAlert,  User
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class RegisterUserSerializer(serializers.ModelSerializer):
     """
-    Serializer for the custom User model.
-    Handles serialization and deserialization of User objects,
-    ensuring proper validation and transformation of fields.
+    Serializer for user registration. Handles creating a new user
+    while ensuring password hashing and validation.
     """
+    password = serializers.CharField(
+        write_only=True, required=True, min_length=6,
+        style={'input_type': 'password'}
+    )
+    confirm_password = serializers.CharField(
+        write_only=True, required=True, min_length=6,
+        style={'input_type': 'password'}
+    )
 
     class Meta:
         model = User
-        fields = [
-            "email", "full_name", "is_active", "is_staff", "created_at", "updated_at"
-        ]
-        # These fields cannot be modified via API
-        read_only_fields = ["created_at", "updated_at"]
+        fields = ['email', 'full_name', 'password', 'confirm_password']
 
-    def validate_email(self, value):
+    def validate(self, data):
         """
-        Ensures the email is always stored in lowercase to maintain consistency.
+        Ensure that password and confirm_password match.
         """
-        return value.lower()
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError(
+                {"password": "Passwords must match."})
+        return data
 
     def create(self, validated_data):
         """
-        Custom user creation logic to ensure password is properly hashed
-        before saving the user instance.
+        Custom method to create a user with hashed password.
         """
-        password = validated_data.pop('password', None)
-        user = User(**validated_data)
-        if password:
-            user.set_password(password)  # Hash the password before saving
-        user.save()
+        validated_data.pop(
+            'confirm_password')  # Remove confirm_password before saving
+        user = User.objects.create_user(**validated_data)
         return user
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for retrieving and updating user profile.
+    """
+
+    password = serializers.CharField(
+        write_only=True, required=False, min_length=6,
+        style={'input_type': 'password'}
+    )
+
+    class Meta:
+        model = User
+        fields = ["email", "full_name", "password",
+                  "is_active", "is_staff", "created_at", "updated_at"]
+        read_only_fields = ["email", "is_active",
+                            "is_staff", "created_at", "updated_at"]
 
     def update(self, instance, validated_data):
         """
-        Custom update method to handle case formatting and password security.
+        Allow users to update profile details.
         """
         instance.full_name = validated_data.get(
-            "full_name", instance.full_name).title()
-        instance.email = validated_data.get("email", instance.email).lower()
+            "full_name", instance.full_name)
+        # instance.email = validated_data.get("email", instance.email)
 
-        password = validated_data.get("password", None)
+        # Hash password if provided
+        password = validated_data.get("password")
         if password:
-            instance.set_password(password)  # Hash the new password
+            instance.set_password(password)
 
         instance.save()
         return instance
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer for changing user password.
+    """
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_new_password(self, value):
+        """
+        Validate the new password strength.
+        """
+        validate_password(value)
+        return value
+
+    def validate(self, data):
+        """
+        Ensure old password is correct before setting a new one.
+        """
+        user = self.context['request'].user
+        if not user.check_password(data['old_password']):
+            raise serializers.ValidationError(
+                {"old_password": "Old password is incorrect."})
+        return data
+
+    def save(self, **kwargs):
+        """
+        Set the new password.
+        """
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
 
 
 class CompanySerializer(serializers.ModelSerializer):
