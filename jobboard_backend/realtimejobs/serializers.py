@@ -209,4 +209,4 @@ class JobAlertSerializer(serializers.ModelSerializer):
             'location', 'created_at', 'updated_at'
         ]
         # Ensures ID and timestamps remain immutable
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']

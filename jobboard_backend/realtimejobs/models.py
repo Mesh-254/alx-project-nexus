@@ -440,11 +440,7 @@ class JobAlert(models.Model):
     )
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user'], name='unique_user_job_alert')
-            # Ensures a user can only have ONE job alert
-        ]
+        
         indexes = [
             models.Index(fields=['user', 'is_active']),
             models.Index(fields=['location']),

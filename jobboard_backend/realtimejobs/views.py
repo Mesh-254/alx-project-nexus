@@ -15,9 +15,11 @@ from .models import JobPost, Category, User, JobType, Tag, Company, JobInteracti
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
+from .tasks import send_subscription_email
 
 
-# ****************USER  VIEWS ************************
+
+# **************** USER  VIEWS ************************
 
 User = get_user_model()
 
@@ -86,7 +88,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ****************CATEGORIES VIEW************************
+# **************** CATEGORIES VIEW ************************
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """
@@ -157,7 +159,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
-# ****************JOB TYPE VIEWS************************
+# ****************JOB TYPE VIEW************************
 
 
 class JobTypeViewSet(viewsets.ModelViewSet):
@@ -181,7 +183,7 @@ class JobTypeViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-# ****************TAGS VIEWS************************
+# **************** TAGS VIEW ***********************
 
 
 class TagsViewSet(viewsets.ModelViewSet):
@@ -208,7 +210,7 @@ class TagsViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 
-# ****************COMPANY  VIEWS************************
+# **************** COMPANY  VIEW ************************
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
@@ -227,7 +229,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
-# ****************JOB INTERACTION  VIEWS************************
+# ****************JOB INTERACTION  VIEW ***********************
 
 
 class JobInteractionViewSet(viewsets.ModelViewSet):
@@ -308,6 +310,34 @@ class JobInteractionViewSet(viewsets.ModelViewSet):
         if deleted:
             return Response({"message": "Interaction removed successfully."}, status=status.HTTP_204_NO_CONTENT)
         return Response({"error": "Interaction not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+# ****************JOB ALERT  VIEW************************
+
+
+class JobAlertViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing job alerts.
+    Users can create, update, and delete job alerts.
+    """
+    queryset = JobAlert.objects.all()
+    serializer_class = JobAlertSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Ensure users only see their job alerts."""
+        return JobAlert.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        """Assign the authenticated user to the job alert."""
+        job_alert = serializer.save(user=self.request.user)
+
+        # Call Celery task to send confirmation email
+        send_subscription_email.delay(job_alert.id)
+
+
 
 
 class JobpostViewSet(viewsets.ModelViewSet):
