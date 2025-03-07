@@ -12,6 +12,8 @@ router.register(r'jobtypes', views.JobTypeViewSet, basename='jobtype')
 router.register(r'tags', views.TagsViewSet, basename='tag')
 router.register(r'companies', views.CompanyViewSet, basename='company')
 router.register(r'jobposts', views.JobpostViewSet, basename='jobpost')
+router.register(r'jobinteractions', views.JobInteractionViewSet, basename='jobinteraction')
+
 
 
 

@@ -334,7 +334,8 @@ class JobInteraction(models.Model):
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
-        editable=False
+        editable=False,
+        db_column="id"
     )  # Ensures unique interaction identification
 
     user = models.ForeignKey(

@@ -1,4 +1,4 @@
-from django.shortcuts import render  # type: ignore
+from django.shortcuts import get_object_or_404, render  # type: ignore
 from rest_framework import permissions  # type: ignore
 from rest_framework import renderers  # type: ignore
 from rest_framework import viewsets  # type: ignore
@@ -10,15 +10,16 @@ from rest_framework.decorators import action  # type: ignore
 from django.utils.text import slugify  # type: ignore
 
 # Import raw SQL queries
-from realtimejobs.queries.category_queries import CategoryQueries
-from .models import JobPost, Category, User, JobType, Tag, Company
-from .serializers import CompanySerializer, TagSerializer, JobPostSerializer, RegisterUserSerializer, JobTypeSerializer, UserSerializer, ChangePasswordSerializer, CategorySerializer
+from realtimejobs.queries.jobinteraction_queries import JobInteractionQueries
+from .models import JobPost, Category, User, JobType, Tag, Company, JobInteraction
+from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
 
-User = get_user_model()
 
 # ****************USER  VIEWS ************************
+
+User = get_user_model()
 
 
 class RegisterViewSet(viewsets.ModelViewSet):
@@ -155,6 +156,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.delete()  # ORM delete
         return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+
 # ****************JOB TYPE VIEWS************************
 
 
@@ -177,6 +179,7 @@ class JobTypeViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """Customize the deletion process if needed."""
         instance.delete()
+
 
 # ****************TAGS VIEWS************************
 
@@ -204,7 +207,8 @@ class TagsViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-# ****************COMPNAY  VIEWS************************
+
+# ****************COMPANY  VIEWS************************
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
@@ -221,6 +225,89 @@ class CompanyViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Ensures the company is saved correctly when a user creates it."""
         serializer.save()
+
+
+# ****************JOB INTERACTION  VIEWS************************
+
+
+class JobInteractionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for handling job interactions (saving and applying).
+    """
+    queryset = JobInteraction.objects.all()
+    serializer_class = JobInteractionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Restrict data to the logged-in user."""
+        return JobInteraction.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Save a job post as either 'saved' or 'applied'. 
+        Ensures a user can save a job under both statuses but only once per status.
+        """
+        user = request.user
+        job_id = request.data.get("job")
+        job_status = request.data.get("status")
+
+        # Validate job existence
+        job = get_object_or_404(JobPost, id=job_id)
+
+        # Ensure valid job status
+        if job_status not in ['saved', 'applied']:
+            return Response({"error": "Invalid status. Must be 'saved' or 'applied'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the interaction already exists
+        existing_interaction = JobInteraction.objects.filter(
+            user=user, job=job, status=job_status).first()
+
+        if existing_interaction:
+            return Response({"message": f"You have already {job_status} this job."}, status=status.HTTP_200_OK)
+
+        # Create job interaction if it doesn't exist
+        JobInteraction.objects.create(user=user, job=job, status=job_status)
+
+        return Response({"message": f"Job {job_status} successfully!"}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def saved_jobs(self, request):
+        """
+        Fetch jobs saved by the logged-in user.
+        """
+        saved_jobs = JobInteraction.objects.filter(
+            user=request.user, status='saved').select_related('job')
+        serializer = JobInteractionSerializer(saved_jobs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def applied_jobs(self, request):
+        """
+        Fetch jobs applied by the logged-in user.
+        """
+        applied_jobs = JobInteraction.objects.filter(
+            user=request.user, status='applied').select_related('job')
+        serializer = JobInteractionSerializer(applied_jobs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'])
+    def remove_interaction(self, request, pk=None):
+        """
+        Remove a saved/applied status for a job.
+        """
+        user = request.user
+        # Renamed from 'status' to 'job_status'
+        job_status = request.query_params.get("status")
+
+        if not job_status:
+            return Response({"error": "job_status query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted, _ = JobInteraction.objects.filter(
+            user=user, job_id=pk, status=job_status).delete()
+
+        if deleted:
+            return Response({"message": "Interaction removed successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"error": "Interaction not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class JobpostViewSet(viewsets.ModelViewSet):
