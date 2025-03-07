@@ -11,10 +11,10 @@ from django.utils.text import slugify  # type: ignore
 
 # Import raw SQL queries
 from realtimejobs.queries.category_queries import CategoryQueries
-from .models import JobPost, Category, User, JobType
-from .serializers import JobPostSerializer, RegisterUserSerializer, JobTypeSerializer, UserSerializer, ChangePasswordSerializer, CategorySerializer
+from .models import JobPost, Category, User, JobType, Tag, Company
+from .serializers import CompanySerializer, TagSerializer, JobPostSerializer, RegisterUserSerializer, JobTypeSerializer, UserSerializer, ChangePasswordSerializer, CategorySerializer
 from django.contrib.auth import get_user_model  # type: ignore
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
 
 User = get_user_model()
 
@@ -155,6 +155,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category.delete()  # ORM delete
         return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+# ****************JOB TYPE VIEWS************************
+
 
 class JobTypeViewSet(viewsets.ModelViewSet):
     """
@@ -176,9 +178,51 @@ class JobTypeViewSet(viewsets.ModelViewSet):
         """Customize the deletion process if needed."""
         instance.delete()
 
+# ****************TAGS VIEWS************************
+
+
+class TagsViewSet(viewsets.ModelViewSet):
+    """
+    A viewset that provides CRUD operations for tags.
+    """
+    queryset = Tag.objects.all().order_by("name")  # Optimized query
+    serializer_class = TagSerializer
+    permission_classes = [IsAdminOrReadOnly]  # Restrict to admin users
+
+    def perform_create(self, serializer):
+        """Customize the creation process if needed."""
+        serializer.save(slug=slugify(serializer.validated_data["name"]))
+
+    def perform_update(self, serializer):
+        """Ensure slug updates when name changes."""
+        instance = serializer.instance  # Get the existing object
+        name = serializer.validated_data.get("name", instance.name)
+
+        # Update slug only if the name changes
+        if name != instance.name:
+            serializer.save(slug=slugify(name))
+        else:
+            serializer.save()
+
+# ****************COMPNAY  VIEWS************************
+
+
+class CompanyViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Company model:
+    - Allows anyone to read (GET).
+    - Allows authenticated users to create (POST).
+    - Allows only admins to update or delete (PUT, PATCH, DELETE).
+    """
+    queryset = Company.objects.all().order_by("name")
+    serializer_class = CompanySerializer
+    permission_classes = [IsAdminOrReadCreateOnly]  # Apply custom permission
+
+    def perform_create(self, serializer):
+        """Ensures the company is saved correctly when a user creates it."""
+        serializer.save()
 
 
 class JobpostViewSet(viewsets.ModelViewSet):
     queryset = JobPost.objects.all()
     serializer_class = JobPostSerializer
-    permission_classes = (IsAuthenticated, )
