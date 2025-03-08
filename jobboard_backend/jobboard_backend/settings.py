@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 from datetime import timedelta
 
 
-
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'realtimejobs',
     'rest_framework_simplejwt',
+    'django_celery_beat',
 
 ]
 
@@ -121,9 +121,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-REST_FRAMEWORK = { 
-    'DEFAULT_AUTHENTICATION_CLASSES': [ 
-        'rest_framework_simplejwt.authentication.JWTAuthentication', 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
 
@@ -156,7 +156,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 
 # Configure Django to send emails using Gmail

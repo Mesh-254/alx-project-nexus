@@ -1,5 +1,4 @@
-from base_query import BaseQuery
-
+from realtimejobs.queries.base_query import BaseQuery
 class JobAlertQueries(BaseQuery):
     """
     Handles queries related to the realtimejobs_jobalert table for fetching job alerts.
@@ -23,14 +22,30 @@ class JobAlertQueries(BaseQuery):
             AND j.created_at >= NOW() - INTERVAL 1 DAY
             ORDER BY j.created_at DESC;
         """
-        print("[INFO] Fetching jobs for active job alerts")
-        return self.fetch_all(query)
-    
-if __name__ == "__main__":
-    job_alert_queries = JobAlertQueries()
+        print("[SQL QUERY] Fetching jobs for active job alerts:\n", query)
+        
+        results = self.fetch_all(query)
+        print(f"[RESULT] {len(results)} jobs fetched.")
+        for job in results:
+            print(job)  # Print each job row
 
-    # Fetch jobs for email alerts
-    print("\n=== Jobs for Alerts ===")
-    alert_jobs = job_alert_queries.fetch_jobs_for_alerts()
-    for job in alert_jobs:
-        print(job)
+        return results
+
+    def fetch_latest_jobs(self, limit=5):
+        """Fetch the latest job posts for users who have no specific preferences."""
+        query = f"""
+            SELECT 
+                id, title, slug, location, is_worldwide, company_id, 
+                job_type_id, salary, short_description, created_at
+            FROM realtimejobs_jobpost
+            ORDER BY created_at DESC
+            LIMIT {limit};
+        """
+        print("[SQL QUERY] Fetching latest job posts:\n", query)
+
+        results = self.fetch_all(query)
+        print(f"[RESULT] {len(results)} latest jobs fetched.")
+        for job in results:
+            print(job)  # Print each job row
+
+        return results

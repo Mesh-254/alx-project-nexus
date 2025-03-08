@@ -334,7 +334,7 @@ class JobAlertViewSet(viewsets.ModelViewSet):
         """Assign the authenticated user to the job alert."""
         job_alert = serializer.save(user=self.request.user)
 
-        # Call Celery task to send confirmation email
+        # Celery task to send confirmation email
         send_subscription_email.delay(job_alert.id)
 
 
