@@ -43,11 +43,14 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for retrieving and updating user profile.
     """
-
+    url = serializers.HyperlinkedIdentityField(view_name="profile-detail")
+    job_posts = serializers.HyperlinkedRelatedField(
+        many=True, read_only=True, view_name="jobpost-detail"
+    )
     password = serializers.CharField(
         write_only=True, required=False, min_length=6,
         style={'input_type': 'password'}
@@ -55,8 +58,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["email", "full_name", "password",
-                  "is_active", "is_staff", "created_at", "updated_at"]
+        fields = ["url", "email", "full_name", "password",
+                  "is_active", "is_staff", "created_at", "updated_at", "job_posts"]
         read_only_fields = ["email", "is_active",
                             "is_staff", "created_at", "updated_at"]
 
@@ -111,21 +114,22 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 
-class CompanySerializer(serializers.ModelSerializer):
+class CompanySerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for the Company model.
     Handles serialization of company details used in job postings.
     """
+    url = serializers.HyperlinkedIdentityField(view_name="company-detail")
 
     class Meta:
         model = Company
-        fields = ['id', 'name', 'logo', 'description',
+        fields = ['url', 'id', 'name', 'logo', 'description',
                   'updated_at', 'contact_name', 'contact_email']
         # ID and last updated timestamp should not be editable
         read_only_fields = ['id', 'updated_at']
 
 
-class TagSerializer(serializers.ModelSerializer):
+class TagSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for the Tag model.
     Handles job post categorization based on tags like "Python", "Remote", etc.
@@ -138,41 +142,59 @@ class TagSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'slug']
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CategorySerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for the Category model.
     Handles job categories such as "Software Engineering", "Marketing", etc.
     """
+    url = serializers.HyperlinkedIdentityField(view_name="category-detail")
+    job_posts = serializers.HyperlinkedRelatedField(
+        many=True, read_only=True, view_name="jobpost-detail"
+    )
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug']
+        fields = ['url', 'id', 'name', 'slug', 'job_posts']
         # Slug is automatically generated from the category name
         read_only_fields = ['id', 'slug']
 
 
-class JobTypeSerializer(serializers.ModelSerializer):
+class JobTypeSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for the JobType model.
     Represents different types of jobs such as "Full-time", "Part-time", "Freelance".
     """
+    url = serializers.HyperlinkedIdentityField(view_name="jobtype-detail")
 
     class Meta:
         model = JobType
-        fields = ['id', 'name']
+        fields = ['url', 'id', 'name']
         read_only_fields = ['id']  # ID should not be editable
 
 
-class JobPostSerializer(serializers.ModelSerializer):
+class JobPostSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for the JobPost model.
     Handles the creation, update, and retrieval of job postings.
     """
+    url = serializers.HyperlinkedIdentityField(view_name="jobpost-detail")
+    user = serializers.HyperlinkedRelatedField(
+        queryset=User.objects.all(), view_name="profile-detail"
+    )
+    category = serializers.HyperlinkedRelatedField(
+        queryset=Category.objects.all(), view_name="category-detail"
+    )
+    job_type = serializers.HyperlinkedRelatedField(
+        queryset=JobType.objects.all(), view_name="jobtype-detail"
+    )
+    company = serializers.HyperlinkedRelatedField(
+        queryset=Company.objects.all(), view_name="company-detail"
+    )
 
     class Meta:
         model = JobPost
         fields = [
-            'id', 'user', 'job_url', 'title', 'slug', 'location', 'is_worldwide',
+            'url', 'id', 'user', 'job_url', 'title', 'slug', 'location', 'is_worldwide',
             'category', 'job_type', 'salary', 'description', 'short_description',
             'company', 'tags', 'created_at', 'updated_at'
         ]
@@ -180,37 +202,50 @@ class JobPostSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
 
 
-class JobInteractionSerializer(serializers.ModelSerializer):
+class JobInteractionSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for JobInteraction model.
 
     Handles user interactions with job posts, such as saving or applying for jobs.
     """
 
+    url = serializers.HyperlinkedIdentityField(view_name="jobinteraction-detail")
+    user = serializers.HyperlinkedRelatedField(
+        read_only=True, view_name="profile-detail"
+    )
+    job = serializers.HyperlinkedRelatedField(
+        read_only=True, view_name="jobpost-detail"
+    )
+
     class Meta:
         model = JobInteraction
-        fields = ['id', 'user', 'job', 'status', 'timestamp']
+        fields = ['url', 'id', 'user', 'job', 'status', 'timestamp']
         # Prevents manual modification of ID and timestamp
         read_only_fields = ['id', 'timestamp']
 
 
-class JobAlertSerializer(serializers.ModelSerializer):
+class JobAlertSerializer(serializers.HyperlinkedModelSerializer):
     """
     Serializer for JobAlert model.
 
     Allows users to set up job alerts based on selected categories,
     job types, and location.
     """
-    categories = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Category.objects.all()
+    url = serializers.HyperlinkedIdentityField(view_name="jobalert-detail")
+    user = serializers.HyperlinkedRelatedField(
+        read_only=True, view_name="profile-detail"
     )
-    job_types = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=JobType.objects.all()
+    categories = serializers.HyperlinkedRelatedField(
+        many=True, read_only=True, view_name="category-detail"
     )
+    job_types = serializers.HyperlinkedRelatedField(
+        many=True, read_only=True, view_name="jobtype-detail"
+    )
+
     class Meta:
         model = JobAlert
         fields = [
-            'id', 'user', 'email', 'is_active', 'categories', 'job_types',
+            'url', 'id', 'user', 'email', 'is_active', 'categories', 'job_types',
             'location', 'created_at', 'updated_at'
         ]
         # Ensures ID and timestamps remain immutable
