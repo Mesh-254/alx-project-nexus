@@ -201,7 +201,12 @@ class JobAlertSerializer(serializers.ModelSerializer):
     Allows users to set up job alerts based on selected categories,
     job types, and location.
     """
-
+    categories = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Category.objects.all()
+    )
+    job_types = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=JobType.objects.all()
+    )
     class Meta:
         model = JobAlert
         fields = [

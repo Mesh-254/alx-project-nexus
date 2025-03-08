@@ -16,7 +16,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     "send-job-alerts-every-24-hours": {
         "task": "realtimejobs.tasks.send_periodic_job_alerts",
-        "schedule": crontab(hour="8", minute="0"),  # Runs daily at 8 AM
+        "schedule": crontab( minute="*"),  # Runs daily at 8 AM
     },
 }
 

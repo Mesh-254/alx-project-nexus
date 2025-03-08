@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404, render  # type: ignore
+from django.shortcuts import get_object_or_404, render# type: ignore
 from rest_framework import permissions  # type: ignore
 from rest_framework import renderers  # type: ignore
 from rest_framework import viewsets  # type: ignore
@@ -8,6 +8,11 @@ from rest_framework.response import Response  # type: ignore
 from rest_framework.permissions import AllowAny  # type: ignore
 from rest_framework.decorators import action  # type: ignore
 from django.utils.text import slugify  # type: ignore
+from django.http import HttpResponse # type: ignore
+from django.views.decorators.csrf import csrf_exempt # type: ignore
+
+
+
 
 # Import raw SQL queries
 from realtimejobs.queries.jobinteraction_queries import JobInteractionQueries
@@ -332,10 +337,39 @@ class JobAlertViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Assign the authenticated user to the job alert."""
-        job_alert = serializer.save(user=self.request.user)
+        job_alert = serializer.save(user=self.request.user, is_active=True)
 
         # Celery task to send confirmation email
         send_subscription_email.delay(job_alert.id)
+
+@csrf_exempt
+def unsubscribe(request, alert_id):
+    if request.method != "POST":
+        return HttpResponse({"error": "Invalid request method. Use POST."}, status=405)
+
+    # Get the specific JobAlert instance
+    alert = get_object_or_404(JobAlert, id=alert_id)
+
+    # Get the user associated with alert
+    user = alert.user
+
+    # Deactivate ALL job alerts for this user
+    # alerts = JobAlert.objects.filter(user=user, is_active=True)
+
+    # Delete all job alerts for this user
+    JobAlert.objects.filter(user=user).delete()
+    
+    # if not alerts.exists():
+    #     return HttpResponse("You have already unsubscribed from job alerts.")
+
+    # alerts.update(is_active=False)  # Bulk update to deactivate all alerts
+    
+    # alerts = JobAlert.objects.filter(user=user, is_active=False)
+    # if alerts:
+    #     # Delete all job alerts for this user
+    #     alerts.delete()
+
+    return HttpResponse("You have successfully unsubscribed from all job alerts.")
 
 
 

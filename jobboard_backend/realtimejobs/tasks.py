@@ -4,9 +4,8 @@ from celery import shared_task  # type: ignore
 from django.core.mail import send_mail, send_mass_mail  # type: ignore
 from django.conf import settings  # type: ignore
 from collections import defaultdict
-from django.db.models import Q # type: ignore
-from django.utils import timezone # type: ignore
-
+from django.db.models import Q  # type: ignore
+from django.utils import timezone  # type: ignore
 
 
 @shared_task
@@ -35,19 +34,23 @@ def send_subscription_email(job_alert_id):
 def send_periodic_job_alerts():
     """Efficiently fetch job alerts and send batch emails to thousands of users."""
 
-    alerts = JobAlert.objects.filter(is_active=True).prefetch_related('categories', 'job_types')
+    alerts = JobAlert.objects.filter(
+        is_active=True).prefetch_related('categories', 'job_types')
     print(f"Found {alerts.count()} active job alerts.")
 
     # Fetch all job posts once, reducing repetitive queries
-    all_jobs = JobPost.objects.all().order_by('-created_at')[:100]  # Fetch 100 latest jobs in bulk
+    all_jobs = JobPost.objects.all().order_by(
+        '-created_at')[:100]  # Fetch 100 latest jobs in bulk
 
     # Categorize jobs based on category, job type, and location
     categorized_jobs = defaultdict(list)
 
     for job in all_jobs:
-        categorized_jobs[(job.category_id, job.job_type_id, job.location)].append(job)
+        categorized_jobs[(job.category_id, job.job_type_id,
+                          job.location)].append(job)
         if job.is_worldwide:
-            categorized_jobs[(job.category_id, job.job_type_id, None)].append(job)  # Handle worldwide jobs
+            categorized_jobs[(job.category_id, job.job_type_id, None)].append(
+                job)  # Handle worldwide jobs
 
     email_messages = []
 
@@ -59,7 +62,7 @@ def send_periodic_job_alerts():
 
         jobs = [
             job for (category_id, job_type_id, location), job_list in categorized_jobs.items()
-            if category_id in user_categories and job_type_id in user_job_types and (alert.location == location or location is None)
+            if str(category_id) in user_categories and str(job_type_id) in user_job_types and (alert.location == location or location is None)
         ]
 
         # If no matching jobs, fetch the latest ones
@@ -87,7 +90,8 @@ Best,
 RealtimeJobs Team
             """
 
-            email_messages.append((subject, message, settings.EMAIL_HOST_USER, [alert.email]))
+            email_messages.append(
+                (subject, message, settings.EMAIL_HOST_USER, [alert.email]))
 
     if email_messages:
         send_mass_mail(email_messages, fail_silently=False)
