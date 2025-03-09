@@ -1,4 +1,5 @@
-from django.shortcuts import get_object_or_404, render# type: ignore
+from django.shortcuts import get_object_or_404, redirect, render  # type: ignore
+from django.conf import settings  # type: ignore
 from rest_framework import permissions  # type: ignore
 from rest_framework import renderers  # type: ignore
 from rest_framework import viewsets  # type: ignore
@@ -8,10 +9,12 @@ from rest_framework.response import Response  # type: ignore
 from rest_framework.permissions import AllowAny  # type: ignore
 from rest_framework.decorators import action  # type: ignore
 from django.utils.text import slugify  # type: ignore
-from django.http import HttpResponse # type: ignore
-from django.views.decorators.csrf import csrf_exempt # type: ignore
-
-
+from django.http import HttpResponse  # type: ignore
+from django.views.decorators.csrf import csrf_exempt  # type: ignore
+from rest_framework.views import APIView  # type: ignore
+import requests
+import uuid
+from .models import JobPost, Payment
 
 
 # Import raw SQL queries
@@ -21,7 +24,6 @@ from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
 from .tasks import send_subscription_email
-
 
 
 # **************** USER  VIEWS ************************
@@ -317,8 +319,6 @@ class JobInteractionViewSet(viewsets.ModelViewSet):
         return Response({"error": "Interaction not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
-
-
 # ****************JOB ALERT  VIEW************************
 
 
@@ -342,6 +342,7 @@ class JobAlertViewSet(viewsets.ModelViewSet):
         # Celery task to send confirmation email
         send_subscription_email.delay(job_alert.id)
 
+
 @csrf_exempt
 def unsubscribe(request, alert_id):
     if request.method != "POST":
@@ -358,12 +359,12 @@ def unsubscribe(request, alert_id):
 
     # Delete all job alerts for this user
     JobAlert.objects.filter(user=user).delete()
-    
+
     # if not alerts.exists():
     #     return HttpResponse("You have already unsubscribed from job alerts.")
 
     # alerts.update(is_active=False)  # Bulk update to deactivate all alerts
-    
+
     # alerts = JobAlert.objects.filter(user=user, is_active=False)
     # if alerts:
     #     # Delete all job alerts for this user
@@ -372,8 +373,97 @@ def unsubscribe(request, alert_id):
     return HttpResponse("You have successfully unsubscribed from all job alerts.")
 
 
-
+# ****************JOB POST  VIEW ***********************
 
 class JobpostViewSet(viewsets.ModelViewSet):
     queryset = JobPost.objects.all()
     serializer_class = JobPostSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Handles job creation and payment initiation."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Generate a unique transaction reference
+        tx_ref = uuid.uuid4().hex
+
+        # Payment data to be sent to Chapa
+        payload = {
+            "amount": "20.00",  # Static fee for posting a job
+            "currency": "USD",
+            "email": "meshack3197@gmail.com",  # Assuming user email exists
+            "tx_ref": tx_ref,
+            "callback_url": settings.CHAPA_CALLBACK_URL,  # User is redirected after payment
+            "customization": {
+                "title": "Job Post Payment",
+                "description": "Get your job posted on RealtimeJobs"
+            }
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {settings.CHAPA_SECRET_KEY}'
+        }
+
+        # Send request to Chapa API
+        response = requests.post(
+            "https://api.chapa.co/v1/transaction/initialize", json=payload, headers=headers)
+        data = response.json()
+
+        print(f'payment details {data}')
+
+        # Check if payment initialization was successful
+        if data.get('status') == 'success':
+            checkout_url = data.get('data', {}).get('checkout_url')
+            if not checkout_url:
+                return Response({'error': 'Payment initialization failed'}, status=status.HTTP_400_BAD_REQUEST)
+                        
+            # Save the JobPost using the serializer
+            job_post = serializer.save(status='draft')
+
+
+            # Save payment details
+            payment = Payment.objects.create(
+                job_post=job_post,
+                amount=payload['amount'],
+                currency=payload['currency'],
+                email=payload['email'],
+                tx_ref=payload['tx_ref'],
+                payment_status='pending'
+            )
+            payment.save()
+
+            # Return the checkout URL to redirect the user
+            return redirect(checkout_url)
+        else:
+            return Response({'error': 'Payment initialization failed'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PaymentVerificationView(APIView):
+    """
+    Handles Chapa payment verification.
+    If payment is successful, updates job status to "published".
+    """
+
+    def get(self, request):
+        tx_ref = request.GET.get('tx_ref')
+        payment = get_object_or_404(Payment, tx_ref=tx_ref)
+
+        # Verify payment using Chapa API
+        url = f"https://api.chapa.co/v1/transaction/verify/{tx_ref}"
+        headers = {'Authorization': f'Bearer {settings.CHAPA_SECRET_KEY}'}
+        response = requests.get(url, headers=headers)
+        verification_data = response.json()
+
+        if verification_data.get('status') == 'success':
+            # Update payment and job post status
+            payment.payment_status = 'success'
+            payment.save()
+
+            job_post = payment.job_post
+            job_post.status = 'published'
+            job_post.save()
+
+            return Response({"message": "Payment successful, job is now published"}, status=status.HTTP_200_OK)
+
+        return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)

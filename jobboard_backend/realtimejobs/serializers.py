@@ -196,7 +196,7 @@ class JobPostSerializer(serializers.HyperlinkedModelSerializer):
         fields = [
             'url', 'id', 'user', 'job_url', 'title', 'slug', 'location', 'is_worldwide',
             'category', 'job_type', 'salary', 'description', 'short_description',
-            'company', 'tags', 'created_at', 'updated_at'
+            'company', 'tags', 'created_at', 'updated_at', 'status'
         ]
         # These fields should not be editable
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at']

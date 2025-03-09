@@ -6,3 +6,6 @@ db.sqlite3
 migrations
 */migrations/*
 **/migrations/
+realtimesjobs/static/
+realtimesjobs/static/*
+static

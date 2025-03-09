@@ -2,6 +2,9 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models  # type: ignore
 from django.utils.text import slugify  # type: ignore
 from django.core.validators import MaxLengthValidator  # type: ignore
+from django_ckeditor_5.fields import CKEditor5Field # type: ignore
+
+
 
 import uuid
 
@@ -131,11 +134,8 @@ class Company(models.Model):
         blank=True,
         help_text="Company logo image file (optional)."
     )
-    description = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Optional company description."
-    )
+    description = CKEditor5Field(config_name='default') 
+    
     updated_at = models.DateTimeField(
         auto_now=True,
         db_index=True,  # Index for faster queries when sorting/filtering
@@ -209,14 +209,21 @@ class JobPost(models.Model):
     """
     Stores job postings and links them to a company and relevant tags.
     """
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='job_posts')
+
+    JOB_STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('closed', 'Closed'),
+    ]
 
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
         editable=False
     )  # Unique & secure identifier
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='job_posts')
+    
     job_url = models.CharField(
         max_length=2083,  # 2083 is the max URL length in modern browsers
         null=False,
@@ -273,11 +280,7 @@ class JobPost(models.Model):
         help_text="Salary range (e.g., '$100K - $200K')."
     )
 
-    description = models.TextField(
-        null=False,
-        blank=False,
-        help_text="Detailed job description."
-    )
+    description = CKEditor5Field(config_name='default') 
 
     short_description = models.TextField(
         null=False,
@@ -311,6 +314,10 @@ class JobPost(models.Model):
         auto_now=True,
         db_index=True,  # Tracking updates efficiently
         help_text="Timestamp of the last update."
+    )
+
+    status = models.CharField(
+        max_length=10, choices=JOB_STATUS_CHOICES, default='draft'
     )
 
     def save(self, *args, **kwargs):
@@ -448,3 +455,24 @@ class JobAlert(models.Model):
 
     def __str__(self):
         return f"Job Alert for {self.user.email} ({'Active' if self.is_active else 'Inactive'})"
+
+
+class Payment(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('declined', 'Declined'),
+    ]
+
+    job_post = models.ForeignKey(JobPost, on_delete=models.CASCADE, related_name="payments")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=20.00)
+    currency = models.CharField(max_length=10, default="USD")
+    email = models.EmailField()
+    tx_ref = models.CharField(max_length=100, unique=True)
+    payment_status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='pending'
+    )
+    
+
+    def __str__(self):
+        return f"Payment for {self.job_post.title} - {self.payment_status}"

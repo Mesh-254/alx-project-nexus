@@ -21,5 +21,6 @@ router.register(r'jobalerts', views.JobAlertViewSet, basename='jobalert')
 urlpatterns = [
     path('', include(router.urls)),
     path('profile/change-password/', views.UserViewSet.as_view({'patch': 'change_password'}), name='change-password'),
+    path('verify_payment/', views.PaymentVerificationView.as_view(), name='verify_payment'),
     path('unsubscribe/<uuid:alert_id>/', views.unsubscribe, name='unsubscribe'),
 ]

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'realtimejobs',
     'rest_framework_simplejwt',
     'django_celery_beat',
+    'django_ckeditor_5',
 
 ]
 
@@ -102,6 +103,13 @@ DATABASES = {
 CELERY_BROKER_URL = "redis://localhost:6379"
 CELERY_RESULT_BACKEND = "redis://localhost:6379"
 
+
+# chapa API secret key and Publick key
+CHAPA_SECRET_KEY = os.getenv('CHAPA_SECRET_KEY')
+CHAPA_PUBLIC_KEY = os.getenv('CHAPA_PUBLIC_KEY')
+
+CHAPA_CALLBACK_URL = 'http://127.0.0.1:8000/verify_payment/'
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -152,6 +160,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = BASE_DIR / 'static'
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
@@ -166,3 +177,32 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': [
+            'heading', '|', 'bold', 'italic', 'link',
+            'bulletedList', 'numberedList', 'blockQuote',
+           '|', 'alignment:left', 'alignment:center',
+            'alignment:right', 'alignment:justify', '|',  # Alignment options
+            'fontColor',  # Text color options
+        ],
+        'language': 'en',
+        'alignment': {
+            'options': ['left', 'center', 'right', 'justify']
+        },
+        'fontColor': {
+            'colors': [
+                {
+                    'color': 'black',
+                    'label': 'Black',
+                    'default': True,
+                },
+               
+            ],
+            'columns': 1  # Arranges colors in 4 columns
+        },
+    },
+}
+
+CKEDITOR_5_CUSTOM_CSS = '/ckstatic/custom_styles.css'
