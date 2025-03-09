@@ -241,6 +241,7 @@ class JobPost(models.Model):
     )
 
     slug = models.SlugField(
+        max_length=255,
         unique=True,
         db_index=True,  # Used for SEO-friendly job URLs
         help_text="SEO-friendly identifier for the job."

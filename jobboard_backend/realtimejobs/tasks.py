@@ -1,4 +1,4 @@
-from realtimejobs.models import JobAlert, JobPost
+from realtimejobs.models import JobAlert, JobPost, Payment
 from realtimejobs.queries.job_alert_queries import JobAlertQueries
 from celery import shared_task  # type: ignore
 from django.core.mail import send_mail, send_mass_mail  # type: ignore
@@ -98,3 +98,24 @@ RealtimeJobs Team
         print(f"✅ Sent {len(email_messages)} job alert emails successfully.")
 
     print("📬 Job alert task completed.")
+
+
+def send_payment_success_email(email, job_title):
+    subject = "Payment Successful -Your Job Post has been Published"
+    message = f"Dear User,\n\nYour payment has been successfully processed, and your job post '{job_title}' is now live on RealtimeJobs.\n\nThank you for using our platform.\n\nBest regards,\nRealtimeJobs Team"
+
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+        fail_silently=False,
+    )
+
+
+@shared_task
+def process_successful_payment(tx_ref):
+    payment = Payment.objects.get(tx_ref=tx_ref)
+    if payment.payment_status == 'success':
+        job_post = payment.job_post
+        send_payment_success_email(payment.email, job_post.title)

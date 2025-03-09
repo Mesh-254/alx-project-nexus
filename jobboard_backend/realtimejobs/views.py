@@ -23,7 +23,7 @@ from .models import JobPost, Category, User, JobType, Tag, Company, JobInteracti
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
-from .tasks import send_subscription_email
+from .tasks import send_subscription_email, process_successful_payment
 
 
 # **************** USER  VIEWS ************************
@@ -463,6 +463,9 @@ class PaymentVerificationView(APIView):
             job_post = payment.job_post
             job_post.status = 'published'
             job_post.save()
+
+            # Trigger email notification task
+            process_successful_payment.delay(tx_ref)
 
             return Response({"message": "Payment successful, job is now published"}, status=status.HTTP_200_OK)
 
