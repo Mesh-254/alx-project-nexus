@@ -15,6 +15,8 @@ from rest_framework.views import APIView  # type: ignore
 import requests
 import uuid
 from .models import JobPost, Payment
+from realtimejobs.queries.jobpost_queries import JobPostQueries # type: ignore
+
 
 
 # Import raw SQL queries
@@ -470,3 +472,21 @@ class PaymentVerificationView(APIView):
             return Response({"message": "Payment successful, job is now published"}, status=status.HTTP_200_OK)
 
         return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class JobPostListViewSet(viewsets.ViewSet):
+    """ViewSet for fetching job posts with multiple filters."""
+
+    def list(self, request):
+        """Handle GET requests with multiple filters and pagination."""
+        categories = request.GET.getlist("category[]")  # Example: ?category[]=1&category[]=2
+        locations = request.GET.getlist("location[]")  # Example: ?location[]=New York&location[]=Berlin
+        job_types = request.GET.getlist("job_type[]")  # Example: ?job_type[]=1&job_type[]=2
+        page = int(request.GET.get("page", 1))
+        page_size = int(request.GET.get("page_size", 15))
+
+        job_query = JobPostQueries()
+        jobs = job_query.fetch_filtered_jobs(categories, locations, job_types, page, page_size)
+
+        return Response({"jobs": jobs, "has_next": len(jobs) == page_size})

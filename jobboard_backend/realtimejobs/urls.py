@@ -14,6 +14,7 @@ router.register(r'companies', views.CompanyViewSet, basename='company')
 router.register(r'jobposts', views.JobpostViewSet, basename='jobpost')
 router.register(r'jobinteractions', views.JobInteractionViewSet, basename='jobinteraction')
 router.register(r'jobalerts', views.JobAlertViewSet, basename='jobalert')
+router.register(r'joblists', views.JobPostListViewSet, basename='joblist')
 
 
 
