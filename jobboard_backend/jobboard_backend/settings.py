@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django_celery_beat',
     'django_ckeditor_5',
+    'drf_yasg',
 
 ]
 
@@ -97,6 +98,18 @@ DATABASES = {
         'PORT':  os.getenv('DB_PORT', default='3306'),
     }
 }
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
 
 
 # Celery settings

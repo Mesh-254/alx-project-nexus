@@ -24,7 +24,7 @@ from realtimejobs.queries.jobinteraction_queries import JobInteractionQueries
 from .models import JobPost, Category, User, JobType, Tag, Company, JobInteraction
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
-from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly
+from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly, IsAdminOnly
 from .tasks import send_subscription_email, process_successful_payment
 
 
@@ -380,6 +380,7 @@ def unsubscribe(request, alert_id):
 class JobpostViewSet(viewsets.ModelViewSet):
     queryset = JobPost.objects.all()
     serializer_class = JobPostSerializer
+    permission_classes = [IsAdminOrReadCreateOnly]
 
     def create(self, request, *args, **kwargs):
         """Handles job creation and payment initiation."""
@@ -490,3 +491,14 @@ class JobPostListViewSet(viewsets.ViewSet):
         jobs = job_query.fetch_filtered_jobs(categories, locations, job_types, page, page_size)
 
         return Response({"jobs": jobs, "has_next": len(jobs) == page_size})
+    
+
+
+class PaymentViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing payment instances.
+    """
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated, IsAdminOnly]
+

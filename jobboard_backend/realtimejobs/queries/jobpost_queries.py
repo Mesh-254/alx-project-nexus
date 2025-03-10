@@ -10,7 +10,7 @@ class JobPostQueries(BaseQuery):
         query = """
             SELECT id, title, slug, location, is_worldwide, category_id, company_id, job_type_id, salary, short_description, created_at
             FROM realtimejobs_jobpost
-            WHERE 1=1
+            WHERE status='published'
         """
         params = []
 

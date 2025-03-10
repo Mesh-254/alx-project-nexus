@@ -1,7 +1,7 @@
 from rest_framework import serializers  # type: ignore
 from django.contrib.auth import get_user_model  # type: ignore
 from django.contrib.auth.password_validation import validate_password  # type: ignore
-from .models import Company, Tag, Category, JobType, JobPost, JobInteraction, JobAlert,  User
+from .models import *
 
 User = get_user_model()
 
@@ -250,3 +250,10 @@ class JobAlertSerializer(serializers.HyperlinkedModelSerializer):
         ]
         # Ensures ID and timestamps remain immutable
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'

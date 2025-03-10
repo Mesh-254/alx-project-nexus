@@ -473,6 +473,11 @@ class Payment(models.Model):
     payment_status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default='pending'
     )
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,  # Sorting interactions by most recent
+        help_text="Time when the interaction occurred."
+    )
     
 
     def __str__(self):
