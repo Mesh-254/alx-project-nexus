@@ -404,7 +404,7 @@ class JobpostViewSet(viewsets.ModelViewSet):
         payload = {
             "amount": "20.00",  # Static fee for posting a job
             "currency": "USD",
-            "email": "meshack3197@gmail.com",  # Assuming user email exists
+            "email": job_post.company.contact_email,  # Assuming user email exists
             "tx_ref": tx_ref,
             "callback_url": settings.CHAPA_CALLBACK_URL,  # User is redirected after payment
             "customization": {
