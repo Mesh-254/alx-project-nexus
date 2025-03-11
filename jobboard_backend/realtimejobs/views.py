@@ -366,21 +366,8 @@ def unsubscribe(request, alert_id):
     # Get the user associated with alert
     user = alert.user
 
-    # Deactivate ALL job alerts for this user
-    # alerts = JobAlert.objects.filter(user=user, is_active=True)
-
     # Delete all job alerts for this user
     JobAlert.objects.filter(user=user).delete()
-
-    # if not alerts.exists():
-    #     return HttpResponse("You have already unsubscribed from job alerts.")
-
-    # alerts.update(is_active=False)  # Bulk update to deactivate all alerts
-
-    # alerts = JobAlert.objects.filter(user=user, is_active=False)
-    # if alerts:
-    #     # Delete all job alerts for this user
-    #     alerts.delete()
 
     return HttpResponse("You have successfully unsubscribed from all job alerts.")
 
