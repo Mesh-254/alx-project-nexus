@@ -48,12 +48,14 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_ckeditor_5',
     'drf_yasg',
+    'corsheaders',
 
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -99,6 +101,16 @@ DATABASES = {
     }
 }
 
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Allow your frontend origin
+]
+
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
         'Bearer': {
@@ -109,7 +121,6 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,
 }
-
 
 
 # Celery settings
@@ -147,7 +158,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 15, 
+    'PAGE_SIZE': 15,
 }
 
 SIMPLE_JWT = {
@@ -198,7 +209,7 @@ CKEDITOR_5_CONFIGS = {
         'toolbar': [
             'heading', '|', 'bold', 'italic', 'link',
             'bulletedList', 'numberedList', 'blockQuote',
-           '|', 'alignment:left', 'alignment:center',
+            '|', 'alignment:left', 'alignment:center',
             'alignment:right', 'alignment:justify', '|',  # Alignment options
             'fontColor',  # Text color options
         ],
@@ -213,7 +224,7 @@ CKEDITOR_5_CONFIGS = {
                     'label': 'Black',
                     'default': True,
                 },
-               
+
             ],
             'columns': 1  # Arranges colors in 4 columns
         },
