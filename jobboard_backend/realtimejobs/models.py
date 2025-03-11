@@ -209,8 +209,6 @@ class JobPost(models.Model):
     """
     Stores job postings and links them to a company and relevant tags.
     """
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='job_posts')
 
     JOB_STATUS_CHOICES = [
         ('draft', 'Draft'),

@@ -22,6 +22,7 @@ router.register(r'payments', views.PaymentViewSet, basename='payment')
 
 urlpatterns = [
     path('', include(router.urls)),
+     path('auth/user/', views.get_current_user, name='auth-user'),
     path('profile/change-password/', views.UserViewSet.as_view({'patch': 'change_password'}), name='change-password'),
     path('verify_payment/', views.PaymentVerificationView.as_view(), name='verify_payment'),
     path('unsubscribe/<uuid:alert_id>/', views.unsubscribe, name='unsubscribe'),

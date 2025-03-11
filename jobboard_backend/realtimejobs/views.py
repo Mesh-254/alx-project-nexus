@@ -12,11 +12,11 @@ from django.utils.text import slugify  # type: ignore
 from django.http import HttpResponse  # type: ignore
 from django.views.decorators.csrf import csrf_exempt  # type: ignore
 from rest_framework.views import APIView  # type: ignore
+from rest_framework.decorators import api_view, permission_classes  # type: ignore
 import requests
 import uuid
 from .models import JobPost, Payment
-from realtimejobs.queries.jobpost_queries import JobPostQueries # type: ignore
-
+from realtimejobs.queries.jobpost_queries import JobPostQueries  # type: ignore
 
 
 # Import raw SQL queries
@@ -29,6 +29,16 @@ from .tasks import send_subscription_email, process_successful_payment
 
 
 # **************** USER  VIEWS ************************
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_user(request):
+    """
+    Returns the details of the currently logged-in user.
+    """
+    serializer = UserSerializer(request.user, context={"request": request})
+    return Response(serializer.data)
+
 
 User = get_user_model()
 
@@ -420,10 +430,9 @@ class JobpostViewSet(viewsets.ModelViewSet):
             checkout_url = data.get('data', {}).get('checkout_url')
             if not checkout_url:
                 return Response({'error': 'Payment initialization failed'}, status=status.HTTP_400_BAD_REQUEST)
-                        
+
             # Save the JobPost using the serializer
             job_post = serializer.save(status='draft')
-
 
             # Save payment details
             payment = Payment.objects.create(
@@ -437,7 +446,8 @@ class JobpostViewSet(viewsets.ModelViewSet):
             payment.save()
 
             # Return the checkout URL to redirect the user
-            return redirect(checkout_url)
+            return Response({"checkout_url": checkout_url}, status=status.HTTP_201_CREATED)
+
         else:
             return Response({'error': 'Payment initialization failed'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -450,7 +460,14 @@ class PaymentVerificationView(APIView):
 
     def get(self, request):
         tx_ref = request.GET.get('tx_ref')
-        payment = get_object_or_404(Payment, tx_ref=tx_ref)
+
+        if not tx_ref:
+            return Response({"error": "Transaction reference missing"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payment = Payment.objects.get(tx_ref=tx_ref)
+        except Payment.DoesNotExist:
+            return Response({"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Verify payment using Chapa API
         url = f"https://api.chapa.co/v1/transaction/verify/{tx_ref}"
@@ -467,13 +484,11 @@ class PaymentVerificationView(APIView):
             job_post.status = 'published'
             job_post.save()
 
-            # Trigger email notification task
-            process_successful_payment.delay(tx_ref)
-
-            return Response({"message": "Payment successful, job is now published"}, status=status.HTTP_200_OK)
+            # Redirect frontend users to success page
+            frontend_success_url = f"http://localhost:5173/payment-success?tx_ref={tx_ref}"
+            return redirect(frontend_success_url)
 
         return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
-    
 
 
 class JobPostListViewSet(viewsets.ViewSet):
@@ -481,17 +496,20 @@ class JobPostListViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """Handle GET requests with multiple filters and pagination."""
-        categories = request.GET.getlist("category[]")  # Example: ?category[]=1&category[]=2
-        locations = request.GET.getlist("location[]")  # Example: ?location[]=New York&location[]=Berlin
-        job_types = request.GET.getlist("job_type[]")  # Example: ?job_type[]=1&job_type[]=2
+        categories = request.GET.getlist(
+            "category[]")  # Example: ?category[]=1&category[]=2
+        # Example: ?location[]=New York&location[]=Berlin
+        locations = request.GET.getlist("location[]")
+        # Example: ?job_type[]=1&job_type[]=2
+        job_types = request.GET.getlist("job_type[]")
         page = int(request.GET.get("page", 1))
         page_size = int(request.GET.get("page_size", 15))
 
         job_query = JobPostQueries()
-        jobs = job_query.fetch_filtered_jobs(categories, locations, job_types, page, page_size)
+        jobs = job_query.fetch_filtered_jobs(
+            categories, locations, job_types, page, page_size)
 
         return Response({"jobs": jobs, "has_next": len(jobs) == page_size})
-    
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -501,4 +519,3 @@ class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
     permission_classes = [IsAuthenticated, IsAdminOnly]
-

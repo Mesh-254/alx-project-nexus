@@ -48,9 +48,6 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     Serializer for retrieving and updating user profile.
     """
     url = serializers.HyperlinkedIdentityField(view_name="profile-detail")
-    job_posts = serializers.HyperlinkedRelatedField(
-        many=True, read_only=True, view_name="jobpost-detail"
-    )
     password = serializers.CharField(
         write_only=True, required=False, min_length=6,
         style={'input_type': 'password'}
@@ -59,7 +56,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
         fields = ["url", "email", "full_name", "password",
-                  "is_active", "is_staff", "created_at", "updated_at", "job_posts"]
+                  "is_active", "is_staff", "created_at", "updated_at"]
         read_only_fields = ["email", "is_active",
                             "is_staff", "created_at", "updated_at"]
 
@@ -178,9 +175,6 @@ class JobPostSerializer(serializers.HyperlinkedModelSerializer):
     Handles the creation, update, and retrieval of job postings.
     """
     url = serializers.HyperlinkedIdentityField(view_name="jobpost-detail")
-    user = serializers.HyperlinkedRelatedField(
-        queryset=User.objects.all(), view_name="profile-detail"
-    )
     category = serializers.HyperlinkedRelatedField(
         queryset=Category.objects.all(), view_name="category-detail"
     )
@@ -194,7 +188,7 @@ class JobPostSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = JobPost
         fields = [
-            'url', 'id', 'user', 'job_url', 'title', 'slug', 'location', 'is_worldwide',
+            'url', 'id', 'job_url', 'title', 'slug', 'location', 'is_worldwide',
             'category', 'job_type', 'salary', 'description', 'short_description',
             'company', 'tags', 'created_at', 'updated_at', 'status'
         ]
