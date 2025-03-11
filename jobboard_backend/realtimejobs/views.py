@@ -25,7 +25,7 @@ from .models import JobPost, Category, User, JobType, Tag, Company, JobInteracti
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly, IsAdminOnly
-from .tasks import send_subscription_email, process_successful_payment
+from .tasks import send_subscription_email, send_payment_success_email
 
 
 # **************** USER  VIEWS ************************
@@ -387,11 +387,16 @@ class JobpostViewSet(viewsets.ModelViewSet):
         # Generate a unique transaction reference
         tx_ref = uuid.uuid4().hex
 
+        # Save the JobPost using the serializer
+        job_post = serializer.save(status='draft')
+
+        company = job_post.company
+
         # Payment data to be sent to Chapa
         payload = {
             "amount": "20.00",  # Static fee for posting a job
             "currency": "USD",
-            "email": job_post.company.contact_email,  # Assuming user email exists
+            "email": company.contact_email,  # Assuming user email exists
             "tx_ref": tx_ref,
             "callback_url": settings.CHAPA_CALLBACK_URL,  # User is redirected after payment
             "customization": {
@@ -409,8 +414,6 @@ class JobpostViewSet(viewsets.ModelViewSet):
         response = requests.post(
             "https://api.chapa.co/v1/transaction/initialize", json=payload, headers=headers)
         data = response.json()
-
-        print(f'payment details {data}')
 
         # Check if payment initialization was successful
         if data.get('status') == 'success':
@@ -471,9 +474,10 @@ class PaymentVerificationView(APIView):
             job_post.status = 'published'
             job_post.save()
 
-            # Redirect frontend users to success page
-            frontend_success_url = f"http://localhost:5173/payment-success?tx_ref={tx_ref}"
-            return redirect(frontend_success_url)
+            # Send email notification after successful payment
+            send_payment_success_email(payment.email, job_post.title)
+
+            return Response({"message": "Payment verified successfully!"}, status=status.HTTP_200_OK)
 
         return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
 
