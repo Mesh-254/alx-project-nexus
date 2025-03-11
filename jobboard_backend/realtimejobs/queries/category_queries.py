@@ -1,4 +1,5 @@
-from realtimejobs.queries.base_query import BaseQuery 
+from realtimejobs.queries.base_query import BaseQuery
+
 
 class CategoryQueries(BaseQuery):
     """
@@ -58,4 +59,3 @@ class CategoryQueries(BaseQuery):
         query = "DELETE FROM realtimejobs_category WHERE id = %s;"
         print(f"[INFO] Deleting category with ID: {category_id}")
         self.execute_query(query, (category_id,))
-
