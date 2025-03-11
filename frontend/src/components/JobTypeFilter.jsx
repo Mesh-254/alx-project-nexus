@@ -1,43 +1,109 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-
-const jobTypes = [
-  { value: "Full-time", label: "Full-time" },
-  { value: "Part-time", label: "Part-time" },
-  { value: "Contract", label: "Contract" },
-  { value: "Freelance", label: "Freelance" },
-  { value: "Internship", label: "Internship" },
-]
+import { useState, useRef, useEffect } from "react";
+import axios from "axios";
 
 export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
-  const [open, setOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const dropdownRef = useRef(null)
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [jobTypes, setJobTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const dropdownRef = useRef(null);
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // Fetch job types from the backend
+  useEffect(() => {
+    const fetchJobTypes = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}jobtypes/`);
+
+        // Check the structure of the response and extract job types accordingly
+        let jobTypesData = [];
+
+        if (Array.isArray(response.data)) {
+          // If response.data is already an array
+          jobTypesData = response.data;
+        } else if (response.data && typeof response.data === "object") {
+          // If response.data is an object, look for common properties that might contain the job types
+          if (Array.isArray(response.data.job_types)) {
+            jobTypesData = response.data.job_types;
+          } else if (Array.isArray(response.data.results)) {
+            jobTypesData = response.data.results;
+          } else if (Array.isArray(response.data.data)) {
+            jobTypesData = response.data.data;
+          } else {
+            // If we can't find a job types array, log an error
+            console.error("Unexpected API response structure:", response.data);
+            setError("Unexpected API response format");
+            setJobTypes([]);
+            setLoading(false);
+            return;
+          }
+        } else {
+          console.error("Unexpected API response type:", typeof response.data);
+          setError("Invalid API response");
+          setJobTypes([]);
+          setLoading(false);
+          return;
+        }
+
+        // Transform the job types data to match the expected format
+        const formattedJobTypes = jobTypesData.map((jobType) => ({
+          value: jobType.id || jobType._id || jobType.value,
+          label: jobType.name || jobType.title || jobType.label,
+        }));
+
+        setJobTypes(formattedJobTypes);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching job types:", err);
+        setError("Failed to load job types");
+        // Fallback to hardcoded job types if API fails
+        setJobTypes([
+          { value: "Full-time", label: "Full-time" },
+          { value: "Part-time", label: "Part-time" },
+          { value: "Contract", label: "Contract" },
+          { value: "Freelance", label: "Freelance" },
+          { value: "Internship", label: "Internship" },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobTypes();
+  }, []);
 
   const toggleJobType = (jobType) => {
-    if (selectedJobTypes.includes(jobType)) {
-      setSelectedJobTypes(selectedJobTypes.filter((t) => t !== jobType))
+    // Get the job type label instead of the value
+    const jobTypeLabel = jobTypes.find((t) => t.value === jobType)?.label;
+
+    if (selectedJobTypes.includes(jobTypeLabel)) {
+      setSelectedJobTypes(selectedJobTypes.filter((t) => t !== jobTypeLabel));
     } else {
-      setSelectedJobTypes([...selectedJobTypes, jobType])
+      setSelectedJobTypes([...selectedJobTypes, jobTypeLabel]);
     }
-  }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpen(false)
+        setOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [dropdownRef])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
-  const filteredJobTypes = jobTypes.filter((jobType) => jobType.label.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredJobTypes = jobTypes.filter((jobType) =>
+    jobType.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
@@ -45,7 +111,9 @@ export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
         onClick={() => setOpen(!open)}
         className="w-full flex justify-between items-center px-4 py-2 text-left text-white border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700"
       >
-        {selectedJobTypes.length > 0 ? `${selectedJobTypes.length} job types selected` : "📄 Select Job Type..."}
+        {selectedJobTypes.length > 0
+          ? `${selectedJobTypes.length} job types selected`
+          : "📄 Select Job Type..."}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -71,7 +139,11 @@ export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
                 <span
                   key={jobType}
                   className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-800 cursor-pointer dark:bg-gray-700 dark:text-gray-200"
-                  onClick={() => toggleJobType(jobType)}
+                  onClick={() =>
+                    setSelectedJobTypes(
+                      selectedJobTypes.filter((t) => t !== jobType)
+                    )
+                  }
                 >
                   {jobType}
                   <span className="ml-1">×</span>
@@ -99,8 +171,27 @@ export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
           </div>
 
           <div className="max-h-64 overflow-y-auto">
-            {filteredJobTypes.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No job type found.</div>
+            {loading ? (
+              <div className="px-3 py-4 text-center">
+                <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                <p className="mt-2 text-sm text-gray-500">
+                  Loading job types...
+                </p>
+              </div>
+            ) : error ? (
+              <div className="px-3 py-4 text-center text-red-500">
+                <p>{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-2 text-sm text-orange-500 hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : filteredJobTypes.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                No job type found.
+              </div>
             ) : (
               <ul>
                 {filteredJobTypes.map((jobType) => (
@@ -110,9 +201,13 @@ export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
                     onClick={() => toggleJobType(jobType.value)}
                   >
                     <div
-                      className={`mr-2 h-4 w-4 flex items-center justify-center ${selectedJobTypes.includes(jobType.value) ? "text-orange-500" : "text-transparent"}`}
+                      className={`mr-2 h-4 w-4 flex items-center justify-center ${
+                        selectedJobTypes.includes(jobType.label)
+                          ? "text-orange-500"
+                          : "text-transparent"
+                      }`}
                     >
-                      {selectedJobTypes.includes(jobType.value) && (
+                      {selectedJobTypes.includes(jobType.label) && (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width="16"
@@ -137,6 +232,5 @@ export function JobTypeFilter({ selectedJobTypes, setSelectedJobTypes }) {
         </div>
       )}
     </div>
-  )
+  );
 }
-

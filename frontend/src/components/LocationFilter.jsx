@@ -18,6 +18,7 @@ const locations = [
   { value: "india", label: "India" },
   { value: "singapore", label: "Singapore" },
   { value: "japan", label: "Japan" },
+  { value: "kenya", label: "Kenya" },
 ]
 
 export function LocationFilter({ selectedLocation, setSelectedLocation }) {

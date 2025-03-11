@@ -16,7 +16,7 @@ export function JobCard({ job }) {
                     height={64}
                   />
                 ) : (
-                  <div className="text-sm font-bold text-center overflow-clip flex items-center justify-center rounded-full text-black bg-white h-[64px] object-contain min-w-[64px] max-w-[64px]">
+                  <div className="text-lg font-bold text-center overflow-clip flex items-center justify-center rounded-full text-black bg-white h-[64px] object-contain min-w-[64px] max-w-[64px]">
                     <p className="break-words w-[95%]">{job.companyInitials || job.company.substring(0, 2)}</p>
                   </div>
                 )}
