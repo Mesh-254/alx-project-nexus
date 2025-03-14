@@ -17,6 +17,8 @@ import requests
 import uuid
 from .models import JobPost, Payment
 from realtimejobs.queries.jobpost_queries import JobPostQueries  # type: ignore
+from drf_yasg import openapi  # type: ignore
+from drf_yasg.utils import swagger_auto_schema  # type: ignore
 
 
 # Import raw SQL queries
@@ -25,7 +27,7 @@ from .models import JobPost, Category, User, JobType, Tag, Company, JobInteracti
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly, IsAdminOnly
-from .tasks import send_subscription_email, process_successful_payment
+from .tasks import send_subscription_email, send_payment_success_email
 
 
 # **************** USER  VIEWS ************************
@@ -43,19 +45,24 @@ def get_current_user(request):
 User = get_user_model()
 
 
-class RegisterViewSet(viewsets.ModelViewSet):
+class RegisterViewSet(viewsets.ViewSet):
     """
     A ViewSet for user registration. Allows new users to create an account.
     """
     serializer_class = RegisterUserSerializer
     queryset = User.objects.all()
-    permission_classes = [AllowAny]
 
-    def create(self, request, *args, **kwargs):
+    @swagger_auto_schema(
+        request_body=RegisterUserSerializer,
+        responses={201: openapi.Response(
+            "User registered successfully", RegisterUserSerializer)},
+    )
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def register(self, request, *args, **kwargs):
         """
         Handles user registration (POST request).
         """
-        serializer = self.get_serializer(data=request.data)
+        serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             return Response(
@@ -72,6 +79,7 @@ class UserViewSet(viewsets.ModelViewSet):
     - Update details (PATCH /profile/)
     - Change password (PATCH /profile/change-password/)
     """
+
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
@@ -366,21 +374,8 @@ def unsubscribe(request, alert_id):
     # Get the user associated with alert
     user = alert.user
 
-    # Deactivate ALL job alerts for this user
-    # alerts = JobAlert.objects.filter(user=user, is_active=True)
-
     # Delete all job alerts for this user
     JobAlert.objects.filter(user=user).delete()
-
-    # if not alerts.exists():
-    #     return HttpResponse("You have already unsubscribed from job alerts.")
-
-    # alerts.update(is_active=False)  # Bulk update to deactivate all alerts
-
-    # alerts = JobAlert.objects.filter(user=user, is_active=False)
-    # if alerts:
-    #     # Delete all job alerts for this user
-    #     alerts.delete()
 
     return HttpResponse("You have successfully unsubscribed from all job alerts.")
 
@@ -400,11 +395,16 @@ class JobpostViewSet(viewsets.ModelViewSet):
         # Generate a unique transaction reference
         tx_ref = uuid.uuid4().hex
 
+        # Save the JobPost using the serializer
+        job_post = serializer.save(status='draft')
+
+        company = job_post.company
+
         # Payment data to be sent to Chapa
         payload = {
             "amount": "20.00",  # Static fee for posting a job
             "currency": "USD",
-            "email": job_post.company.contact_email,  # Assuming user email exists
+            "email": company.contact_email,  # Assuming user email exists
             "tx_ref": tx_ref,
             "callback_url": settings.CHAPA_CALLBACK_URL,  # User is redirected after payment
             "customization": {
@@ -422,8 +422,6 @@ class JobpostViewSet(viewsets.ModelViewSet):
         response = requests.post(
             "https://api.chapa.co/v1/transaction/initialize", json=payload, headers=headers)
         data = response.json()
-
-        print(f'payment details {data}')
 
         # Check if payment initialization was successful
         if data.get('status') == 'success':
@@ -484,9 +482,10 @@ class PaymentVerificationView(APIView):
             job_post.status = 'published'
             job_post.save()
 
-            # Redirect frontend users to success page
-            frontend_success_url = f"http://localhost:5173/payment-success?tx_ref={tx_ref}"
-            return redirect(frontend_success_url)
+            # Send email notification after successful payment
+            send_payment_success_email(payment.email, job_post.title)
+
+            return Response({"message": "Payment verified successfully!"}, status=status.HTTP_200_OK)
 
         return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
 
