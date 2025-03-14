@@ -307,7 +307,7 @@ const JobPostForm = () => {
   };
 
   return (
-    <div className="w-full mx-auto px-4 py-8 bg-gray-950 text-gray-200">
+    <div className="w-330 mx-auto px-4 py-8 bg-gray-950 text-gray-200">
       <div className="text-center mb-8">
         <h1 className="text-4xl md:text-5xl font-bold text-orange-500 mb-2">
           Post a Job Today for $20.
