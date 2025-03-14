@@ -17,6 +17,8 @@ import requests
 import uuid
 from .models import JobPost, Payment
 from realtimejobs.queries.jobpost_queries import JobPostQueries  # type: ignore
+from drf_yasg import openapi  # type: ignore
+from drf_yasg.utils import swagger_auto_schema  # type: ignore
 
 
 # Import raw SQL queries
@@ -43,19 +45,24 @@ def get_current_user(request):
 User = get_user_model()
 
 
-class RegisterViewSet(viewsets.ModelViewSet):
+class RegisterViewSet(viewsets.ViewSet):
     """
     A ViewSet for user registration. Allows new users to create an account.
     """
     serializer_class = RegisterUserSerializer
     queryset = User.objects.all()
-    permission_classes = [AllowAny]
 
-    def create(self, request, *args, **kwargs):
+    @swagger_auto_schema(
+        request_body=RegisterUserSerializer,
+        responses={201: openapi.Response(
+            "User registered successfully", RegisterUserSerializer)},
+    )
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def register(self, request, *args, **kwargs):
         """
         Handles user registration (POST request).
         """
-        serializer = self.get_serializer(data=request.data)
+        serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             return Response(
@@ -72,6 +79,7 @@ class UserViewSet(viewsets.ModelViewSet):
     - Update details (PATCH /profile/)
     - Change password (PATCH /profile/change-password/)
     """
+
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 

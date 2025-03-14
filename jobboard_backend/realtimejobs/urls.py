@@ -2,6 +2,8 @@ from rest_framework.routers import DefaultRouter  # type: ignore
 from django.urls import path, include  # type: ignore
 from realtimejobs import views
 
+
+
 router = DefaultRouter()
 
 
