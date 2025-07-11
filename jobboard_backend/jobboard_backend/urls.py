@@ -18,11 +18,12 @@ from django.contrib import admin  # type: ignore
 from django.urls import path, include  # type: ignore
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView  # type: ignore
 from realtimejobs.swagger import schema_view
+from realtimejobs.views import CustomTokenObtainPairView  # type: ignore
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('swagger/', schema_view.with_ui('swagger',
                                          cache_timeout=0), name='schema-swagger-ui'),
