@@ -132,7 +132,7 @@ CELERY_RESULT_BACKEND = "redis://localhost:6379"
 CHAPA_SECRET_KEY = os.getenv('CHAPA_SECRET_KEY')
 CHAPA_PUBLIC_KEY = os.getenv('CHAPA_PUBLIC_KEY')
 
-CHAPA_CALLBACK_URL = 'http://127.0.0.1:8000/verify_payment/'
+CHAPA_CALLBACK_URL = "http://localhost:5173/payment-success"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
