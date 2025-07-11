@@ -77,7 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="User's full name (first and last name)."
     )
     is_active = models.BooleanField(
-        default=True,
+        default=False,
         db_index=True,  # Optimize filtering for active users
         help_text="Indicates whether the user account is active."
     )
