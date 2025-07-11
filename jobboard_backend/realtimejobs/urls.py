@@ -24,6 +24,8 @@ router.register(r'payments', views.PaymentViewSet, basename='payment')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('activate/', views.activate_user, name='activate-user'),
+    path('auth/resend-confirmation/', views.resend_confirmation, name='resend-confirmation'),
     path('auth/user/', views.get_current_user, name='auth-user'),
     path('profile/change-password/', views.UserViewSet.as_view({'patch': 'change_password'}), name='change-password'),
     path('verify_payment/', views.PaymentVerificationView.as_view(), name='verify_payment'),
