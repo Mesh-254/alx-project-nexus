@@ -6,6 +6,22 @@ from django.conf import settings  # type: ignore
 from collections import defaultdict
 from django.db.models import Q  # type: ignore
 from django.utils import timezone  # type: ignore
+from django.contrib.auth.tokens import default_token_generator
+from django.urls import reverse  # type: ignore
+from realtimejobs.models import User
+
+@shared_task
+def send_confirmation_email(user_id):
+    user = User.objects.get(id=user_id)
+    token = default_token_generator.make_token(user)
+
+    name = getattr(user, "full_name", None) or user.email
+
+    confirm_url = f"http://127.0.0.1:8000/activate/?uid={user.id}&token={token}"
+
+    subject = "Confirm your RealtimeJobs account"
+    message = f"Hi {name},\n\nPlease confirm your account by clicking the link below:\n{confirm_url}\n\nIf you did not register, ignore this email."
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
 
 
 @shared_task
@@ -99,7 +115,7 @@ RealtimeJobs Team
 
     print("📬 Job alert task completed.")
 
-
+@shared_task
 def send_payment_success_email(email, job_title):
     subject = "Payment Successful -Your Job Post has been Published"
     message = f"Dear User,\n\nYour payment has been successfully processed, and your job post '{job_title}' is now live on RealtimeJobs.\n\nThank you for using our platform.\n\nBest regards,\nRealtimeJobs Team"
