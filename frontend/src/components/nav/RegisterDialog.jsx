@@ -65,6 +65,7 @@ export function RegisterDialog({ isOpen, onClose, onSignIn }) {
     return Object.keys(newErrors).length === 0;
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError("");
@@ -102,7 +103,7 @@ export function RegisterDialog({ isOpen, onClose, onSignIn }) {
       }
 
       // Show success toast instead of alert
-      addToast("Account created successfully!", "success");
+      addToast("Account created successfully! Check Email to confirm your account", "success");
 
       // Close the register dialog and open sign in
       setTimeout(() => {
@@ -120,6 +121,7 @@ export function RegisterDialog({ isOpen, onClose, onSignIn }) {
 
   return (
     <>
+    
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">

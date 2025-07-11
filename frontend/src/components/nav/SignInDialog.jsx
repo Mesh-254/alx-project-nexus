@@ -13,12 +13,22 @@ export function SignInDialog({ isOpen, onClose, onRegister }) {
   const [errors, setErrors] = useState({})
   const [toasts, setToasts] = useState([])
 
+  // Add these states for resend confirmation
+  const [showResend, setShowResend] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState("")
+
   const API_URL = import.meta.env.VITE_API_URL
 
-  // Clear toasts when dialog closes
+  // Clear toasts and reset states when dialog opens or closes
   useEffect(() => {
     if (!isOpen) {
       setToasts([]);
+      setShowResend(false);
+      setResendLoading(false);
+      setResendSuccess(false);
+      setPendingEmail("");
     }
   }, [isOpen]);
 
@@ -92,6 +102,12 @@ export function SignInDialog({ isOpen, onClose, onRegister }) {
       const data = await response.json()
 
       if (!response.ok) {
+        // Detect unverified email error
+        if (data.detail && data.detail.toLowerCase().includes("verify your email")) {
+          setShowResend(true)
+          setPendingEmail(formData.email)
+          throw new Error("Please verify your email before signing in.")
+        }
         // Handle different types of error responses
         if (data.detail) {
           throw new Error(data.detail);
@@ -128,14 +144,37 @@ export function SignInDialog({ isOpen, onClose, onRegister }) {
       addToast(error.message || "Invalid email or password", "error")
       
       // Set field-specific errors if applicable
-      if (error.message.toLowerCase().includes("email")) {
+      if (error.message && error.message.toLowerCase().includes("verify your email")) {
+        setShowResend(true)
+        setPendingEmail(formData.email)
+      }
+      if (error.message && error.message.toLowerCase().includes("email")) {
         setErrors(prev => ({ ...prev, email: "Invalid email" }));
       }
-      if (error.message.toLowerCase().includes("password")) {
+      if (error.message && error.message.toLowerCase().includes("password")) {
         setErrors(prev => ({ ...prev, password: "Invalid password" }));
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Add resend confirmation handler
+  const handleResendConfirmation = async () => {
+    setResendLoading(true)
+    try {
+      const response = await fetch(`${API_URL}auth/resend-confirmation/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: pendingEmail }),
+      })
+      if (!response.ok) throw new Error("Failed to resend confirmation email.")
+      setResendSuccess(true)
+      addToast("Confirmation email resent. Please check your inbox.", "success")
+    } catch (err) {
+      addToast("Failed to resend confirmation email.", "error")
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -212,6 +251,23 @@ export function SignInDialog({ isOpen, onClose, onRegister }) {
               </div>
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
+
+            {/* Resend confirmation UI */}
+            {showResend && (
+              <div className="mt-4 bg-yellow-900 bg-opacity-50 border border-yellow-500 text-yellow-200 px-4 py-2 rounded-md">
+                <p>
+                  Your account is not verified. Please check your email for a confirmation link.
+                </p>
+                <button
+                  className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600"
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendLoading || resendSuccess}
+                >
+                  {resendLoading ? "Resending..." : resendSuccess ? "Email Sent!" : "Resend Confirmation Email"}
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"
