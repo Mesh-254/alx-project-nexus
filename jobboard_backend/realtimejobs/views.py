@@ -13,6 +13,10 @@ from django.http import HttpResponse  # type: ignore
 from django.views.decorators.csrf import csrf_exempt  # type: ignore
 from rest_framework.views import APIView  # type: ignore
 from rest_framework.decorators import api_view, permission_classes  # type: ignore
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 import requests
 import uuid
 from .models import JobPost, Payment
@@ -27,10 +31,29 @@ from .models import JobPost, Category, User, JobType, Tag, Company, JobInteracti
 from .serializers import *
 from django.contrib.auth import get_user_model  # type: ignore
 from .permissions import IsAdminOrReadOnly, IsAdminOrReadCreateOnly, IsAdminOnly
-from .tasks import send_subscription_email, send_payment_success_email
+from .tasks import send_subscription_email, send_payment_success_email, send_confirmation_email
+from django.contrib.auth.tokens import default_token_generator
+
+
+
+
+
+#custom token view or serializer, override authentication to check is_active/is_verified
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        if not self.user.is_active:  # or not self.user.is_verified
+            raise serializers.ValidationError("Please verify your email before signing in.")
+        return data
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 
 # **************** USER  VIEWS ************************
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -57,19 +80,54 @@ class RegisterViewSet(viewsets.ViewSet):
         responses={201: openapi.Response(
             "User registered successfully", RegisterUserSerializer)},
     )
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def register(self, request, *args, **kwargs):
+    
+    def create(self, request, *args, **kwargs):
         """
         Handles user registration (POST request).
         """
         serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            # Set is_active to False initially
+            user = serializer.save(is_active=False)
+            send_confirmation_email.delay(user.id)
             return Response(
                 {"message": "User registered successfully!", "user": serializer.data},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# endpoint to activate the user when they click the email link.
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def activate_user(request):
+    uid = request.GET.get('uid')
+    token = request.GET.get('token')
+    try:
+        user = User.objects.get(id=uid)
+        if default_token_generator.check_token(user, token):
+            user.is_active = True  # or user.is_verified = True
+            user.save()
+            return Response({"message": "Account activated successfully!"})
+        else:
+            return Response({"error": "Invalid or expired token."}, status=400)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=404)
+
+# Endpoint to Resend Confirmation Email Endpoint
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_confirmation(request):
+    email = request.data.get('email')
+    try:
+        user = User.objects.get(email=email)
+        if user.is_active:  # or user.is_verified
+            return Response({"message": "Account already activated."})
+        send_confirmation_email.delay(user.id)
+        return Response({"message": "Confirmation email resent."})
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=404)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -412,6 +470,7 @@ class JobpostViewSet(viewsets.ModelViewSet):
                 "description": "Get your job posted on RealtimeJobs"
             }
         }
+        print("chapa payload", payload)
 
         headers = {
             'Content-Type': 'application/json',
@@ -457,7 +516,7 @@ class PaymentVerificationView(APIView):
     """
 
     def get(self, request):
-        tx_ref = request.GET.get('tx_ref')
+        tx_ref = request.GET.get('tx_ref') or request.GET.get('trx_ref')
 
         if not tx_ref:
             return Response({"error": "Transaction reference missing"}, status=status.HTTP_400_BAD_REQUEST)
